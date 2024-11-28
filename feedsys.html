@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Feedback App</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: start;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        label {
+            font-weight: bold;
+            color: #333;
+            text-align: left;
+            display: block;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .chart-container {
+            margin-top: 30px;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 800px;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: 400px;
+        }
+
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #ffffff;
+            font-size: 0.9em;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Course Feedback Form</h1>
+        <form id="feedbackForm">
+            <label for="course">Course Name:</label>
+            <input type="text" id="course" name="course" required>
+            
+            <label for="rating">Rating (1-5):</label>
+            <input type="number" id="rating" name="rating" min="1" max="5" required>
+            
+            <label for="comments">Comments:</label>
+            <textarea id="comments" name="comments" rows="4"></textarea>
+            
+            <button type="button" id="submitFeedback">Submit Feedback</button>
+        </form>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="feedbackChart"></canvas>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 WAIT TECHNOLOGIES. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const ctx = document.getElementById('feedbackChart').getContext('2d');
+            let feedbackChart;
+
+            document.getElementById('submitFeedback').addEventListener('click', function() {
+                const course = document.getElementById('course').value;
+                const rating = parseInt(document.getElementById('rating').value);
+                const comments = document.getElementById('comments').value;
+
+                if (!course || isNaN(rating) || rating < 1 || rating > 5) {
+                    alert('Please fill in all required fields with valid values');
+                    return;
+                }
+
+                // Store feedback in local storage
+                let feedbackData = JSON.parse(localStorage.getItem('feedbackData')) || [];
+                feedbackData.push({ course, rating, comments });
+                localStorage.setItem('feedbackData', JSON.stringify(feedbackData));
+
+                // Send feedback using Formspree API
+                sendFeedbackToFormspree(course, rating, comments);
+
+                updateChart();
+            });
+
+            function sendFeedbackToFormspree(course, rating, comments) {
+                const data = {
+                    course: course,
+                    rating: rating,
+                    comments: comments
+                };
+
+                fetch('https://formspree.io/f/xdkowpnr', {  // Replace with your Formspree form ID
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Feedback has been sent successfully!');
+                    } else {
+                        alert('Failed to send feedback. Please try again later.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to send feedback. Please try again later.');
+                });
+            }
+
+            function updateChart() {
+                const feedbackData = JSON.parse(localStorage.getItem('feedbackData')) || [];
+                const ratingsCount = [0, 0, 0, 0, 0];
+
+                feedbackData.forEach(feedback => {
+                    if (feedback.rating >= 1 && feedback.rating <= 5) {
+                        ratingsCount[feedback.rating - 1]++;
+                    }
+                });
+
+                if (feedbackChart) {
+                    feedbackChart.destroy();
+                }
+
+                feedbackChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['1', '2', '3', '4', '5'],
+                        datasets: [{
+                            label: 'Number of Ratings',
+                            data: ratingsCount,
+                            backgroundColor: [
+                                'rgba(75, 192, 192, 0.5)',
+                                'rgba(153, 102, 255, 0.5)',
+                                'rgba(255, 159, 64, 0.5)',
+                                'rgba(255, 99, 132, 0.5)',
+                                'rgba(54, 162, 235, 0.5)'
+                            ],
+                            borderColor: [
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Number of Feedbacks'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Rating Scale'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Initialize chart on load
+            updateChart();
+        });
+    </script>
+</body>
+</html>
